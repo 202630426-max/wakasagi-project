@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>여드름 파괴 맞춤 루틴 생성기</title>
+  <!-- 이미지 저장 기능을 위한 html2canvas 라이브러리 로드 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    /* CSS 변수 설정 (푸른색 계열 팔레트) */
+    :root {
+      --primary: #2A7BE4;        /* 메인 파란색 */
+      --primary-hover: #1E62C4;  /* 버튼 호버 시 */
+      --bg-color: #F0F5FA;       /* 연한 하늘색 배경 */
+      --card-bg: #FFFFFF;        /* 카드 흰색 배경 */
+      --text-main: #1E293B;      /* 어두운 블루 그레이 */
+      --text-sub: #64748B;       /* 보조 텍스트 */
+      --border-color: #E2E8F0;   /* 테두리 */
+      --selected-bg: #EBF3FE;    /* 선택된 카드 배경 */
+      --danger-bg: #FEF2F2;      /* 경고 카드 배경 */
+      --danger-border: #FCA5A5;  /* 경고 테두리 */
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* 메인 컨테이너 */
+    .app-container {
+      background-color: var(--card-bg);
+      width: 100%;
+      max-width: 500px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(42, 123, 228, 0.1);
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 상단 프로그레스 바 */
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background-color: #E2E8F0;
+      border-radius: 3px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background-color: var(--primary);
+      transition: width 0.3s ease;
+    }
+
+    /* 공통 스텝 화면 스타일 */
+    .step {
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 타이틀 및 설명 */
+    .title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .description {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      margin-bottom: 20px;
+    }
+
+    /* 옵션 카드 */
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .option-card {
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background-color: #FAFCFE;
+    }
+
+    .option-card:hover {
+      border-color: var(--primary);
+    }
+
+    .option-card.selected {
+      border-color: var(--primary);
+      background-color: var(--selected-bg);
+    }
+
+    .option-icon {
+      font-size: 1.5rem;
+    }
+
+    .option-text strong {
+      display: block;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .option-text span {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    /* 식단 멀티 그리드 */
+    .food-scroll-area {
+      max-height: 320px;
+      overflow-y: auto;
+      padding-right: 4px;
+      margin-bottom: 24px;
+    }
+
+    .food-scroll-area::-webkit-scrollbar {
+      width: 6px;
+    }
+    .food-scroll-area::-webkit-scrollbar-thumb {
+      background-color: #CBD5E1;
+      border-radius: 3px;
+    }
+
+    .category-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 16px 0 8px 0;
+    }
+
+    .category-title:first-child {
+      margin-top: 0;
+    }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .grid-2col .option-card {
+      padding: 12px;
+      flex-direction: row;
+      text-align: left;
+      gap: 10px;
+    }
+
+    .grid-2col .option-card strong {
+      font-size: 0.85rem;
+    }
+
+    /* 시간 입력 폼 */
+    .time-group {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .time-input-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .time-input-box label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .time-input-box input[type="time"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 1rem;
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .time-input-box input[type="time"]:focus {
+      border-color: var(--primary);
+    }
+
+    /* 버튼 그룹 (이전/다음) */
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #E2E8F0;
+      color: var(--text-main);
+      width: 35%;
+    }
+
+    .btn-secondary:hover {
+      background-color: #CBD5E1;
+    }
+
+    /* 결과 페이지 스타일 */
+    .result-capture-area {
+      background-color: var(--card-bg);
+      padding: 12px 4px;
+      border-radius: 12px;
+    }
+
+    .result-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: var(--selected-bg);
+      color: var(--primary);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      border-left: 2px dashed var(--primary);
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--primary);
+    }
+
+    .time-tag {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      background-color: var(--selected-bg);
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .timeline-content strong {
+      display: block;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+      color: var(--text-main);
+    }
+
+    .timeline-content p {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      line-height: 1.45;
+    }
+
+    /* 절대 금기 사항 카드 */
+    .warning-box {
+      background-color: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .warning-box h4 {
+      color: #DC2626;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .warning-box ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .warning-box li {
+      font-size: 0.8rem;
+      color: #991B1B;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .warning-box li:last-child {
+      margin-bottom: 0;
+    }
+
+    /* 저장 버튼 스태킹 */
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- 상단 진행바 -->
+  <div class="progress-bar-container" id="progressContainer" style="display: none;">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <!-- STEP 0: 메인 시작 화면 -->
+  <div class="step active" id="step0">
+    <div style="text-align: center; padding: 20px 0;">
+      <span style="font-size: 3rem;">💧</span>
+      <h1 class="title" style="margin-top: 16px; font-size: 1.5rem;">나만의 여드름 케어<br>맞춤 루틴 만들기</h1>
+      <p class="description" style="margin-top: 8px;">
+        피부 상태, 먹고 싶은 식단, 일상 일정만 알려주세요.<br>피부를 식혀줄 맞춤 타임라인을 짜드릴게요!
+      </p>
+      <button class="btn" onclick="nextStep(1)">3분 만에 루틴 짜기 🚀</button>
+    </div>
+  </div>
+
+  <!-- STEP 1: 여드름 심각도 선택 -->
+  <div class="step" id="step1">
+    <h2 class="title">Q1. 현재 피부 상태는 어떤가요?</h2>
+    <p class="description">선택하신 정도에 따라 루틴의 강도가 결정됩니다.</p>
+    
+    <div class="options-grid">
+      <div class="option-card" onclick="selectSingle(this, 'severity', 'easy')">
+        <span class="option-icon">🟢</span>
+        <div class="option-text">
+          <strong>가벼움 (좁쌀/가끔 올라옴)</strong>
+          <span>부담 없는 데일리 기본 케어 루틴</span>
+        </div>
+      </div>
+      <div class="option-card" onclick="selectSingle(this, 'severity', 'normal')">
+        <span class="option-icon">🟡</span>
+        <div class="option-text">
+          <strong>보통 (붉은 여드름이 자주 생김)</strong>
+          <span>적극적인 식단 및 수면 관리가 필요한 상태</span>
+        </div>
+      </div>
+      <div class="option-card" onclick="selectSingle(this, 'severity', 'hard')">
+        <span class="option-icon">🔴</span>
+        <div class="option-text">
+          <strong>심함 (화농성/통증 동반)</strong>
+          <span>집중적이고 엄격한 생활습관 리셋 루틴</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="nextStep(0)">이전</button>
+      <button class="btn" onclick="validateAndNext(1, 2)">다음 단계로</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: 선호 식단 선택 -->
+  <div class="step" id="step2">
+    <h2 class="title">Q2. 즐겨 먹거나 오늘 먹을 식단은?</h2>
+    <p class="description">솔직하게 골라주세요! 여드름 예방용 방어 루틴을 맞춰드릴게요. (다중 선택)</p>
+    
+    <div class="food-scroll-area">
+      <!-- 카테고리 1: 자극적 & 기름진 음식 -->
+      <div class="category-title">🔥 자극적 & 기름진 음식</div>
+      <div class="grid-2col">
+        <div class="option-card" onclick="toggleMulti(this, '떡볶이/분식')">
+          <span class="option-icon">🍢</span>
+          <div class="option-text"><strong>떡볶이/분식</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '치킨/패스트푸드')">
+          <span class="option-icon">🍗</span>
+          <div class="option-text"><strong>치킨/햄버거</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '마라탕/탕후루')">
+          <span class="option-icon">🌶️</span>
+          <div class="option-text"><strong>마라탕/탕후루</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '라면/야식')">
+          <span class="option-icon">🍜</span>
+          <div class="option-text"><strong>라면/야식류</strong></div>
+        </div>
+      </div>
+
+      <!-- 카테고리 2: 육류 & 기름진 식사 -->
+      <div class="category-title">🥩 육류 & 기름진 식사</div>
+      <div class="grid-2col">
+        <div class="option-card" onclick="toggleMulti(this, '삼겹살/구이류')">
+          <span class="option-icon">🥓</span>
+          <div class="option-text"><strong>삼겹살/구이</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '돈까스/튀김류')">
+          <span class="option-icon">🍤</span>
+          <div class="option-text"><strong>돈까스/튀김</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '찌개/국밥류')">
+          <span class="option-icon">🍲</span>
+          <div class="option-text"><strong>찌개/국밥류</strong></div>
+        </div>
+      </div>
+
+      <!-- 카테고리 3: 디저트 & 음료 -->
+      <div class="category-title">🍰 디저트 & 음료</div>
+      <div class="grid-2col">
+        <div class="option-card" onclick="toggleMulti(this, '아이스크림/빙수')">
+          <span class="option-icon">🍨</span>
+          <div class="option-text"><strong>아이스크림</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '빵/과자/케이크')">
+          <span class="option-icon">🍰</span>
+          <div class="option-text"><strong>빵/디저트</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '탄산음료/액상당')">
+          <span class="option-icon">🥤</span>
+          <div class="option-text"><strong>탄산/단 음료</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '커피/라떼류')">
+          <span class="option-icon">☕</span>
+          <div class="option-text"><strong>커피/라떼</strong></div>
+        </div>
+      </div>
+
+      <!-- 카테고리 4: 클린 & 건강식 -->
+      <div class="category-title">🥗 클린 & 건강식</div>
+      <div class="grid-2col">
+        <div class="option-card" onclick="toggleMulti(this, '샐러드/포케')">
+          <span class="option-icon">🥗</span>
+          <div class="option-text"><strong>샐러드/포케</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '생선/해산물')">
+          <span class="option-icon">🐟</span>
+          <div class="option-text"><strong>생선/해산물</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '두부/계란/한식')">
+          <span class="option-icon">🍳</span>
+          <div class="option-text"><strong>두부/계란한식</strong></div>
+        </div>
+        <div class="option-card" onclick="toggleMulti(this, '과일/견과류')">
+          <span class="option-icon">🍎</span>
+          <div class="option-text"><strong>과일/견과류</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="nextStep(1)">이전</button>
+      <button class="btn" onclick="validateAndNext(2, 3)">다음 단계로</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: 일과 시간 선택 -->
+  <div class="step" id="step3">
+    <h2 class="title">Q3. 아침/저녁 주요 일정을 알려주세요.</h2>
+    <p class="description">수면 골든타임(피부 재생 시간)을 계산하기 위해 필요해요.</p>
+    
+    <div class="time-group">
+      <div class="time-input-box">
+        <label for="wakeTime">☀️ 아침 기상(등교/출근) 시간</label>
+        <input type="time" id="wakeTime" value="07:00">
+      </div>
+      <div class="time-input-box">
+        <label for="homeTime">🌙 저녁 일정 완료(귀가/학원) 시간</label>
+        <input type="time" id="homeTime" value="22:00">
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="nextStep(2)">이전</button>
+      <button class="btn" onclick="generateRoutine()">맞춤 루틴 확인하기 ✨</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: 결과 화면 -->
+  <div class="step" id="step4">
+    <!-- 캡처 구역 시작 -->
+    <div class="result-capture-area" id="captureArea">
+      <div class="result-header">
+        <span class="badge" id="resultBadge">보통 강도 루틴</span>
+        <h2 class="title">오늘의 맞춤 피부 케어 타임라인</h2>
+      </div>
+
+      <div class="timeline" id="timelineContainer">
+        <!-- 자바스크립트로 동적 생성됨 -->
+      </div>
+
+      <!-- 여드름 주의사항 카드 -->
+      <div class="warning-box">
+        <h4>🚨 오늘 절대 하지 말아야 할 3가지</h4>
+        <ul>
+          <li>❌ <b>손으로 얼굴 만지지 않기:</b> 세균 감염으로 염증이 커집니다.</li>
+          <li>❌ <b>뜨거운 물 세안 피하기:</b> 피부 장벽이 무너지니 미온수를 쓰세요.</li>
+          <li>❌ <b>수건으로 문질러 닦지 않기:</b> 자극을 피해 톡톡 눌러서 닦으세요.</li>
+        </ul>
+      </div>
+    </div>
+    <!-- 캡처 구역 끝 -->
+
+    <div class="action-buttons">
+      <button class="btn" onclick="downloadImage()" style="background-color: #059669;">📸 이미지로 루틴 저장하기</button>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="nextStep(3)">수정하기</button>
+        <button class="btn" onclick="resetApp()" style="background-color: #64748B;">처음부터 다시</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 사용자 응답 데이터 저장 객체
+  const userData = {
+    severity: '',
+    foods: [],
+    wakeTime: '07:00',
+    homeTime: '22:00'
+  };
+
+  // 단일 선택 로직
+  function selectSingle(element, key, value) {
+    const parent = element.parentElement;
+    parent.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+    element.classList.add('selected');
+    userData[key] = value;
+  }
+
+  // 다중 선택 로직
+  function toggleMulti(element, value) {
+    element.classList.toggle('selected');
+    if (userData.foods.includes(value)) {
+      userData.foods = userData.foods.filter(item => item !== value);
+    } else {
+      userData.foods.push(value);
+    }
+  }
+
+  // 단계 이동 및 프로그레스바 업데이트
+  function nextStep(stepNumber) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step${stepNumber}`).classList.add('active');
+
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+
+    if (stepNumber > 0 && stepNumber < 4) {
+      progressContainer.style.display = 'block';
+      progressBar.style.width = `${(stepNumber / 3) * 100}%`;
+    } else {
+      progressContainer.style.display = 'none';
+    }
+  }
+
+  // 필수 선택 유효성 검사
+  function validateAndNext(currentStep, nextStepNum) {
+    if (currentStep === 1 && !userData.severity) {
+      alert('피부 상태를 선택해주세요!');
+      return;
+    }
+    if (currentStep === 2 && userData.foods.length === 0) {
+      alert('음식을 최소 1개 이상 선택해주세요!');
+      return;
+    }
+    nextStep(nextStepNum);
+  }
+
+  // 시간 계산 헬퍼 함수
+  function addMinutesToTime(timeStr, minutesToAdd) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes + minutesToAdd, 0);
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  }
+
+  // 결과 루틴 생성 함수
+  function generateRoutine() {
+    userData.wakeTime = document.getElementById('wakeTime').value;
+    userData.homeTime = document.getElementById('homeTime').value;
+
+    const badge = document.getElementById('resultBadge');
+    const container = document.getElementById('timelineContainer');
+
+    // 강도 표시
+    if(userData.severity === 'easy') badge.innerText = "🌱 가벼운 케어 루틴";
+    else if(userData.severity === 'normal') badge.innerText = "💧 집중 밸런스 루틴";
+    else badge.innerText = "🔥 딥 클린 리셋 루틴";
+
+    // 식사 시간 자동 계산
+    const lunchTime = addMinutesToTime(userData.wakeTime, 300);
+    const dinnerTime = addMinutesToTime(userData.homeTime, -120);
+    const sleepTime = addMinutesToTime(userData.wakeTime, -450);
+
+    // 식단 분석 팁
+    const hasJunk = userData.foods.some(f => ['떡볶이/분식', '치킨/패스트푸드', '마라탕/탕후루', '라면/야식', '삼겹살/구이류', '돈까스/튀김류'].includes(f));
+    const hasSugar = userData.foods.some(f => ['아이스크림/빙수', '빵/과자/케이크', '탄산음료/액상당', '커피/라떼류'].includes(f));
+
+    let lunchTip = "자극이 적은 식단 위주로 즐겨주시고, 식후 가벼운 산책으로 혈당 급등을 방지하세요.";
+    let dinnerTip = "저녁 식사는 소화가 잘되도록 천천히 드시고, 식사 후 취침까지 최소 3시간의 간격을 확보하세요.";
+
+    if (hasJunk) {
+      lunchTip = "기름지거나 자극적인 음식을 선택하셨다면 <b>점심 시간</b>에 드시는 것을 권장합니다! 식사 전 물 1컵을 마시면 혈당 스파이크 방지에 도움이 됩니다.";
+    }
+    if (hasSugar) {
+      dinnerTip = "단 음료나 디저트는 저녁 늦게 섭취할 경우 야간 염증 반응(피지 분비)을 자극합니다. 저녁 이후 당류 섭취는 피해주세요!";
+    }
+
+    const foodListStr = userData.foods.join(', ');
+
+    // 타임라인 출력
+    container.innerHTML = `
+      <div class="timeline-item">
+        <div class="timeline-content">
+          <span class="time-tag">☀️ ${userData.wakeTime}</span>
+          <strong>기상 & 아침 쿨링 세안</strong>
+          <p>미온수로 밤새 분비된 유분을 약산성 클렌저로 가볍게 씻어내세요.</p>
+        </div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-content">
+          <span class="time-tag">🍱 ${lunchTime} (추천)</span>
+          <strong>점심 식사 시간</strong>
+          <p>${lunchTip}</p>
+        </div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-content">
+          <span class="time-tag">🌙 ${dinnerTime} (추천)</span>
+          <strong>저녁 식사 시간 [선택 식단 반영]</strong>
+          <p>${dinnerTip} (선택된 메뉴: ${foodListStr})</p>
+        </div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-content">
+          <span class="time-tag">🏠 ${userData.homeTime}</span>
+          <strong>귀가 즉시 2차 세안</strong>
+          <p>외부 먼지와 유분이 모공을 막기 전에 집에 오자마자 손을 씻고 꼼꼼하게 클렌징하세요.</p>
+        </div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-content">
+          <span class="time-tag">😴 ${sleepTime} 권장</span>
+          <strong>수면 준비 및 베개 케어</strong>
+          <p>피부 재생의 골든타임을 위해 취침에 들어갑니다. 베개 위에 깨끗한 수건을 깔아주세요.</p>
+        </div>
+      </div>
+    `;
+
+    nextStep(4);
+  }
+
+  // 결과 화면 이미지 다운로드 함수
+  function downloadImage() {
+    const captureArea = document.getElementById('captureArea');
+    html2canvas(captureArea, {
+      scale: 2, // 고해상도 저장
+      backgroundColor: "#FFFFFF"
+    }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'my_acne_routine.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  }
+
+  // 초기화
+  function resetApp() {
+    userData.severity = '';
+    userData.foods = [];
+    document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+    nextStep(0);
+  }
+</script>
+</body>
+</html>
